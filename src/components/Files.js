@@ -35,7 +35,10 @@ import {
   ArrowBack as ArrowBackIcon,
   Close as CloseIcon,
   Edit as EditIcon,
-  InsertDriveFile as InsertDriveFileIcon
+  InsertDriveFile as InsertDriveFileIcon,
+  Image as ImageIcon,
+  PictureAsPdf as PictureAsPdfIcon,
+  Description as DescriptionIcon
 } from '@mui/icons-material';
 import api from './api';
 
@@ -127,6 +130,33 @@ const FileMenu = ({ anchorEl, onClose, item, onDownload, onDelete }) => {
       </MenuItem>
     </Menu>
   );
+};
+
+// Fungsi helper untuk mendapatkan icon dan preview berdasarkan file type
+const getFileTypeInfo = (fileType) => {
+  if (fileType?.startsWith('image/')) {
+    return {
+      icon: <ImageIcon sx={{ color: '#2196F3' }} />,
+      previewType: 'image'
+    };
+  } else if (fileType === 'application/pdf') {
+    return {
+      icon: <PictureAsPdfIcon sx={{ color: '#f44336' }} />,
+      previewType: 'pdf'
+    };
+  } else if (
+    fileType === 'application/msword' || 
+    fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ) {
+    return {
+      icon: <DescriptionIcon sx={{ color: '#4CAF50' }} />,
+      previewType: 'word'
+    };
+  }
+  return {
+    icon: <InsertDriveFileIcon sx={{ color: '#757575' }} />,
+    previewType: 'other'
+  };
 };
 
 function Files() {
@@ -271,38 +301,28 @@ function Files() {
     }
   };
 
-  // Perbaiki fungsi handleItemClick
+  // Modifikasi fungsi handleItemClick
   const handleItemClick = (item, isFolder) => {
     if (isFolder) {
       setCurrentPath([...currentPath, item.name]);
     } else {
-      // Log untuk debugging
-      console.log('File clicked:', item);
+      const fileInfo = getFileTypeInfo(item.file_type);
       
-      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-      const pdfExtension = ['pdf'];
-      const extension = item.name.split('.').pop().toLowerCase();
-      
-      if (imageExtensions.includes(extension)) {
-        // Preview untuk gambar
-        const validUrl = getValidImageUrl(item.url);
-        console.log('Preview URL:', validUrl);
-        
+      if (fileInfo.previewType === 'image') {
+        // Untuk gambar tetap gunakan preview dialog
         setPreviewFile({
           ...item,
-          url: validUrl,
+          url: item.url,
           type: 'image'
         });
         setPreviewOpen(true);
-      } else if (pdfExtension.includes(extension)) {
-        // Preview untuk PDF menggunakan Google Docs Viewer
-        const validUrl = getValidImageUrl(item.url);
-        setPreviewFile({
-          ...item,
-          url: validUrl,
-          type: 'pdf'
-        });
-        setPreviewOpen(true);
+      } else if (fileInfo.previewType === 'pdf' || fileInfo.previewType === 'word') {
+        // Untuk PDF dan Word, buka di tab baru menggunakan Google Docs Viewer
+        const viewerUrl = fileInfo.previewType === 'pdf' 
+          ? `https://docs.google.com/viewer?url=${encodeURIComponent(item.url)}&embedded=false` 
+          : `https://docs.google.com/viewer?url=${encodeURIComponent(item.url)}&embedded=false`;
+        
+        window.open(viewerUrl, '_blank');
       } else {
         handleDownload(item);
       }
@@ -599,26 +619,18 @@ function Files() {
                   maxHeight: '100%',
                   objectFit: 'contain'
                 }}
-                onError={(e) => {
-                  console.error('Error loading image:', e);
-                  console.log('Failed URL:', previewFile.url);
-                  setError('Gagal memuat gambar');
-                  setPreviewOpen(false);
-                }}
               />
             )}
-            {previewFile?.url && previewFile?.type === 'pdf' && (
+            {previewFile?.url && (previewFile?.type === 'pdf' || previewFile?.type === 'word') && (
               <iframe
-                src={getGoogleDocsViewerUrl(previewFile.url)}
+                src={previewFile.type === 'pdf' ? 
+                  getGoogleDocsViewerUrl(previewFile.url) : 
+                  `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewFile.url)}`
+                }
                 width="100%"
                 height="600px"
                 frameBorder="0"
                 style={{ border: 'none' }}
-                onError={(e) => {
-                  console.error('Error loading PDF:', e);
-                  setError('Gagal memuat PDF');
-                  setPreviewOpen(false);
-                }}
               />
             )}
           </Box>
