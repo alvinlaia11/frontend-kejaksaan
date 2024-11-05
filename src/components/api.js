@@ -31,9 +31,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Hapus penambahan /api karena sudah ada di backend URL
-    if (config.url.startsWith('/api')) {
-      config.url = config.url.substring(4);
+    // Perbaiki URL handling
+    if (config.url.startsWith('/api/')) {
+      config.url = config.url.substring(5);
     }
 
     // Log request

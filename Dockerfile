@@ -21,26 +21,8 @@ ENV CI=false
 # Create production build
 RUN npm run build
 
-# Production stage - Gunakan salah satu: nginx ATAU serve
-# Pilihan 1: Menggunakan nginx
-FROM nginx:alpine
+# Install serve
+RUN npm install -g serve
 
-# Copy build files
-COPY --from=build /app/build /usr/share/nginx/html
-
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port
-EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
-
-# ATAU Pilihan 2: Menggunakan serve
-# FROM node:18-alpine
-# RUN npm install -g serve
-# WORKDIR /app
-# COPY --from=build /app/build ./build
-# EXPOSE 80
-# CMD ["serve", "-s", "build", "-l", "80"] 
+# Start serve
+CMD ["serve", "-s", "build", "-l", "80"]
