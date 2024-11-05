@@ -20,6 +20,7 @@ function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -54,6 +55,17 @@ function AppContent() {
     checkAuth();
   }, [location.pathname, navigate]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const handleLogin = (role) => {
     setIsLoggedIn(true);
     setUserRole(role);
@@ -79,7 +91,7 @@ function AppContent() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      {isLoggedIn && <Header userRole={userRole} handleLogout={handleLogout} />}
+      {isLoggedIn && !isFullscreen && <Header userRole={userRole} handleLogout={handleLogout} />}
       <Container component="main" sx={{ mt: 3, mb: 2, flexGrow: 1 }}>
         <Routes>
           {/* Public Routes */}
@@ -208,7 +220,7 @@ function AppContent() {
           />
         </Routes>
       </Container>
-      {isLoggedIn && <Footer />}
+      {isLoggedIn && !isFullscreen && <Footer />}
     </Box>
   );
 }
