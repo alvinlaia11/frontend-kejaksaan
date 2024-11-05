@@ -12,11 +12,14 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  styled
+  styled,
+  IconButton
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
-  AccessTime as ClockIcon
+  AccessTime as ClockIcon,
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon
 } from '@mui/icons-material';
 import api from './api';
 
@@ -25,7 +28,8 @@ const InfoBoard = styled(Box)(({ theme }) => ({
   backgroundColor: '#1a237e',
   minHeight: '100vh',
   padding: theme.spacing(3),
-  color: 'white'
+  color: 'white',
+  position: 'relative'
 }));
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -41,17 +45,19 @@ const HeaderSection = styled(Box)(({ theme }) => ({
   textAlign: 'center'
 }));
 
-const CurrentTime = styled(Typography)(({ theme }) => ({
-  position: 'fixed',
+const FullscreenButton = styled(IconButton)(({ theme }) => ({
+  position: 'absolute',
   top: theme.spacing(2),
-  right: theme.spacing(3),
-  color: 'white',
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
+  right: theme.spacing(2),
   backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  padding: theme.spacing(1, 2),
-  borderRadius: theme.spacing(2)
+  color: 'white',
+  '&:hover': {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)'
+  },
+  padding: '8px',
+  minWidth: '40px',
+  height: '40px',
+  zIndex: 1000
 }));
 
 const StyledTableContainer = styled(TableContainer)({
@@ -62,11 +68,39 @@ const StyledTableContainer = styled(TableContainer)({
   }
 });
 
+const ErrorDisplay = ({ error }) => (
+  <Box p={3}>
+    <Alert severity="error">
+      <Typography variant="body1">{error}</Typography>
+      <Typography variant="caption" display="block" mt={1}>
+        Detail: {error.toString()}
+      </Typography>
+    </Alert>
+  </Box>
+);
+
 function CaseSchedule() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const CurrentTime = styled(Typography)(({ theme }) => ({
+    position: 'fixed',
+    top: theme.spacing(2),
+    right: theme.spacing(3),
+    color: 'white',
+    display: 'none',
+    alignItems: 'center',
+    gap: theme.spacing(1),
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    padding: theme.spacing(1, 2),
+    borderRadius: theme.spacing(2),
+    [theme.breakpoints.up('md')]: {
+      display: isFullscreen ? 'flex' : 'none'
+    }
+  }));
 
   useEffect(() => {
     fetchCases();
@@ -83,16 +117,48 @@ function CaseSchedule() {
     return () => clearInterval(timeId);
   }, []);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const fetchCases = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/cases');
-      if (response.data) {
-        // Urutkan kasus berdasarkan tanggal
-        const sortedCases = response.data.sort((a, b) => 
+      const token = localStorage.getItem('token');
+      
+      const response = await api.get('/api/cases', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('API Response:', response.data); // Debug log
+      
+      if (Array.isArray(response.data)) {
+        // Filter hanya kasus untuk hari ini
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const todayCases = response.data.filter(caseItem => {
+          const caseDate = new Date(caseItem.date);
+          caseDate.setHours(0, 0, 0, 0);
+          return caseDate.getTime() === today.getTime();
+        });
+
+        const sortedCases = todayCases.sort((a, b) => 
           new Date(a.date) - new Date(b.date)
         );
+        console.log('Today cases:', sortedCases); // Debug log
         setCases(sortedCases);
+      } else {
+        throw new Error('Data yang diterima bukan array');
       }
     } catch (err) {
       console.error('Error fetching cases:', err);
@@ -133,6 +199,14 @@ function CaseSchedule() {
     return 'Mendatang';
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
@@ -142,19 +216,24 @@ function CaseSchedule() {
   }
 
   if (error) {
-    return (
-      <Box p={3}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
-    );
+    return <ErrorDisplay error={error} />;
   }
 
   return (
     <InfoBoard>
-      <CurrentTime variant="h6">
-        <ClockIcon />
-        {currentTime.toLocaleTimeString('id-ID')}
-      </CurrentTime>
+      {isFullscreen && (
+        <CurrentTime variant="h6">
+          <ClockIcon />
+          {currentTime.toLocaleTimeString('id-ID')}
+        </CurrentTime>
+      )}
+
+      <FullscreenButton 
+        onClick={toggleFullscreen}
+        title={isFullscreen ? "Keluar Layar Penuh" : "Layar Penuh"}
+      >
+        {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+      </FullscreenButton>
 
       <HeaderSection>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2 }}>
@@ -179,9 +258,10 @@ function CaseSchedule() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>No</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Tanggal</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Judul Kasus</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Tipe</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Saksi</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Jaksa</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>Status</TableCell>
               </TableRow>
             </TableHead>
@@ -194,7 +274,6 @@ function CaseSchedule() {
                   }}
                 >
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell>{formatDate(caseItem.date)}</TableCell>
                   <TableCell>
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
                       {caseItem.title}
@@ -207,6 +286,16 @@ function CaseSchedule() {
                       variant="outlined"
                       size="medium"
                     />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {caseItem.witnesses || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {caseItem.prosecutor || '-'}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Chip 
@@ -234,7 +323,7 @@ function CaseSchedule() {
           right: 0
         }}
       >
-        © 2024 Kejaksaan Negeri - Tindak Pidana Khusus
+        © 2024 Kejaksaan Negeri - Sistem Informasi Jadwal Sidang
       </Typography>
     </InfoBoard>
   );
