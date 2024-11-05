@@ -297,8 +297,12 @@ function CaseSchedule() {
                   </TableCell>
                   <TableCell>
                     <Chip 
-                      label={getStatusText(caseItem.date)}
-                      color={getStatusColor(caseItem.date)}
+                      label={caseItem.status || 'Menunggu'}
+                      color={
+                        caseItem.status === 'Selesai' ? 'success' :
+                        caseItem.status === 'Sedang Proses' ? 'info' :
+                        'warning'
+                      }
                       size="medium"
                     />
                   </TableCell>

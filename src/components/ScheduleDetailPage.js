@@ -4,7 +4,7 @@ import {
   Container, Typography, Paper, Button, Dialog, 
   DialogTitle, DialogContent, DialogActions, TextField, 
   IconButton, Box, Breadcrumbs, Link, Snackbar, Alert,
-  CircularProgress, Grid, Card, CardContent
+  CircularProgress, Grid, Card, CardContent, FormControl, Select, MenuItem, Chip, Menu
 } from '@mui/material';
 import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -13,6 +13,28 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import axios from 'axios';
+import { styled } from '@mui/material/styles';
+
+const StatusChip = styled(Chip)(({ theme, status }) => ({
+  position: 'absolute',
+  top: theme.spacing(3),
+  right: theme.spacing(3),
+  cursor: 'pointer',
+  '& .MuiChip-label': {
+    fontWeight: 500
+  },
+  backgroundColor: 
+    status === 'Menunggu' ? theme.palette.warning.light :
+    status === 'Sedang Proses' ? theme.palette.info.light :
+    status === 'Selesai' ? theme.palette.success.light :
+    theme.palette.grey[500],
+  color: theme.palette.getContrastText(
+    status === 'Menunggu' ? theme.palette.warning.light :
+    status === 'Sedang Proses' ? theme.palette.info.light :
+    status === 'Selesai' ? theme.palette.success.light :
+    theme.palette.grey[500]
+  ),
+}));
 
 function ScheduleDetailPage() {
   const { id } = useParams();
@@ -27,6 +49,11 @@ function ScheduleDetailPage() {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [openStatusMenu, setOpenStatusMenu] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [currentStatus, setCurrentStatus] = useState('Menunggu');
+
+  const statusOptions = ['Menunggu', 'Sedang Proses', 'Selesai'];
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -51,41 +78,26 @@ function ScheduleDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No token found');
+      const response = await api.get(`/api/cases/${id}`);
+      
+      if (response.data) {
+        const caseData = {
+          ...response.data,
+          witnesses: response.data.witnesses || '',
+          prosecutor: response.data.prosecutor || ''
+        };
+        
+        setCaseData(caseData);
+        setEditedCase(caseData);
+        setCurrentStatus(response.data.status || 'Menunggu');
       }
-
-      const response = await api.get(`/api/cases/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      console.log('Case data received:', response.data);
-      
-      if (!response.data) {
-        throw new Error('Data kasus tidak ditemukan');
-      }
-      
-      const caseData = {
-        ...response.data,
-        witnesses: response.data.witnesses || '',
-        prosecutor: response.data.prosecutor || ''
-      };
-      
-      setCaseData(caseData);
-      setEditedCase(caseData);
     } catch (error) {
       console.error('Error fetching case data:', error);
       setError(error.response?.data?.error || 'Gagal mengambil data kasus');
-      if (error.response?.status === 404) {
-        navigate('/dashboard');
-      }
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id]);
 
   useEffect(() => {
     if (!id) {
@@ -200,6 +212,39 @@ function ScheduleDetailPage() {
     }
   };
 
+  const handleStatusClick = (event) => {
+    setAnchorEl(event.currentTarget);
+    setOpenStatusMenu(true);
+  };
+
+  const handleStatusClose = () => {
+    setOpenStatusMenu(false);
+    setAnchorEl(null);
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await api.put(`/api/cases/${id}/status`, {
+        status: newStatus
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data) {
+        setCurrentStatus(newStatus);
+        setCaseData(prev => ({ ...prev, status: newStatus }));
+        showSnackbar(`Status berhasil diubah menjadi ${newStatus}`, 'success');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showSnackbar('Gagal mengubah status', 'error');
+    }
+    handleStatusClose();
+  };
+
   if (loading) {
     return (
       <Container maxWidth="md">
@@ -224,7 +269,29 @@ function ScheduleDetailPage() {
 
   return (
     <Container maxWidth="md">
-      <Paper elevation={3} sx={{ p: 3, mt: 4 }}>
+      <Paper elevation={3} sx={{ p: 3, mt: 4, position: 'relative' }}>
+        <StatusChip
+          label={currentStatus}
+          status={currentStatus}
+          onClick={handleStatusClick}
+        />
+
+        <Menu
+          anchorEl={anchorEl}
+          open={openStatusMenu}
+          onClose={handleStatusClose}
+        >
+          {statusOptions.map((status) => (
+            <MenuItem
+              key={status}
+              onClick={() => handleStatusChange(status)}
+              selected={status === currentStatus}
+            >
+              {status}
+            </MenuItem>
+          ))}
+        </Menu>
+
         <Box display="flex" alignItems="center" mb={3}>
           <IconButton onClick={handleBack} sx={{ mr: 2 }}>
             <ArrowBackIcon />

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, Typography, Paper, Button, Dialog, DialogTitle, 
   DialogContent, DialogActions, TextField, IconButton, Box, 
-  Breadcrumbs, Link, Snackbar, Alert, CircularProgress, Grid, Card, CardContent
+  Breadcrumbs, Link, Snackbar, Alert, CircularProgress, Grid, Card, CardContent, Chip
 } from '@mui/material';
 import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
@@ -203,8 +203,25 @@ function CaseListPage() {
             cases.map((caseItem) => (
               <Grid item xs={12} key={caseItem.id}>
                 <Card>
-                  <CardContent>
-                    <Typography variant="h6">{caseItem.title}</Typography>
+                  <CardContent sx={{ position: 'relative' }}>
+                    <Chip 
+                      label={caseItem.status || 'Menunggu'}
+                      color={
+                        caseItem.status === 'Selesai' ? 'success' :
+                        caseItem.status === 'Sedang Proses' ? 'info' :
+                        'warning'
+                      }
+                      size="medium"
+                      sx={{ 
+                        position: 'absolute',
+                        top: 16,
+                        right: 16
+                      }}
+                    />
+
+                    <Typography variant="h6" sx={{ pr: 12 }}>
+                      {caseItem.title}
+                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Tanggal: {formatDate(caseItem.date)}
                     </Typography>
