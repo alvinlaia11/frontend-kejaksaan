@@ -157,8 +157,6 @@ function CaseSchedule() {
         );
         console.log('Today cases:', sortedCases); // Debug log
         setCases(sortedCases);
-      } else {
-        throw new Error('Data yang diterima bukan array');
       }
     } catch (err) {
       console.error('Error fetching cases:', err);

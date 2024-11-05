@@ -29,54 +29,50 @@ function CaseListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
-  const [newCase, setNewCase] = useState({ title: '', date: '', description: '', parties: '' });
+  const [newCase, setNewCase] = useState({ 
+    title: '', 
+    date: '', 
+    description: '', 
+    parties: '',
+    witnesses: '',
+    prosecutor: ''
+  });
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+
+  const fetchCases = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      const response = await api.get('/api/cases', {
+        params: { 
+          type: category
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Response data:', response.data);
+      setCases(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Error details:', err);
+      setError('Gagal mengambil data kasus');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('No token found, redirecting to login');
-      navigate('/login');
-      return;
-    }
-
-    const fetchCases = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No token found');
-        }
-
-        // Perbaiki URL dan parameter
-        const response = await api.get('/api/cases', {
-          params: { 
-            type: category // pastikan category tidak mengandung karakter khusus
-          },
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        console.log('Response data:', response.data);
-        setCases(response.data || []);
-      } catch (err) {
-        console.error('Error details:', {
-          message: err.message,
-          response: err.response?.data,
-          status: err.response?.status
-        });
-        setError('Gagal mengambil data kasus');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCases();
-  }, [navigate, category]);
+  }, [category]);
 
   const handleOpenDialog = () => {
     setOpenDialog(true);
@@ -84,7 +80,14 @@ function CaseListPage() {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setNewCase({ title: '', date: '', description: '', parties: '' });
+    setNewCase({ 
+      title: '', 
+      date: '', 
+      description: '', 
+      parties: '',
+      witnesses: '',
+      prosecutor: ''
+    });
   };
 
   const handleInputChange = (event) => {
@@ -94,35 +97,42 @@ function CaseListPage() {
 
   const handleSaveNewCase = async () => {
     try {
+      if (!newCase.title || !newCase.date) {
+        showSnackbar('Judul dan tanggal harus diisi', 'error');
+        return;
+      }
+
       const token = localStorage.getItem('token');
-      const response = await api.post('/api/cases', 
-        {
-          ...newCase,
-          type: category
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
       
-      // Refresh data setelah menambah kasus baru
-      const updatedResponse = await api.get(`/api/cases?type=${category}`, {
+      const dataToSend = {
+        title: newCase.title,
+        date: newCase.date,
+        description: newCase.description || '',
+        type: category,
+        parties: newCase.parties || '',
+        witnesses: newCase.witnesses || '',
+        prosecutor: newCase.prosecutor || '',
+      };
+
+      console.log('Data yang akan dikirim:', JSON.stringify(dataToSend, null, 2));
+
+      const response = await api.post('/api/cases', dataToSend, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
-      
-      setCases(updatedResponse.data);
-      
-      handleCloseDialog();
-      setSnackbarMessage(`Kasus baru "${response.data.title}" telah ditambahkan`);
-      setOpenSnackbar(true);
+
+      console.log('Response dari server:', JSON.stringify(response.data, null, 2));
+
+      if (response.data) {
+        await fetchCases();
+        handleCloseDialog();
+        showSnackbar('Kasus baru berhasil ditambahkan', 'success');
+      }
     } catch (error) {
       console.error('Error adding new case:', error);
-      setSnackbarMessage('Gagal menambahkan kasus baru');
-      setOpenSnackbar(true);
+      showSnackbar(error.response?.data?.error || 'Gagal menambahkan kasus baru', 'error');
     }
   };
 
@@ -139,6 +149,12 @@ function CaseListPage() {
 
   const handleViewDetail = (caseId) => {
     navigate(`/case/${caseId}`, { state: { from: location.pathname } });
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setOpenSnackbar(true);
   };
 
   if (loading) {
@@ -183,26 +199,40 @@ function CaseListPage() {
           Tambah Kasus Baru
         </Button>
         <Grid container spacing={2}>
-          {cases.map((caseItem) => (
-            <Grid item xs={12} key={caseItem.id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6">{caseItem.title}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Tanggal: {formatDate(caseItem.date)}
-                  </Typography>
-                  <Button 
-                    variant="outlined" 
-                    size="small" 
-                    sx={{ mt: 1 }}
-                    onClick={() => handleViewDetail(caseItem.id)}
-                  >
-                    Lihat Detail
-                  </Button>
-                </CardContent>
-              </Card>
+          {cases.length > 0 ? (
+            cases.map((caseItem) => (
+              <Grid item xs={12} key={caseItem.id}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6">{caseItem.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Tanggal: {formatDate(caseItem.date)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Saksi: {caseItem.witnesses || '-'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Jaksa: {caseItem.prosecutor || '-'}
+                    </Typography>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      sx={{ mt: 1 }}
+                      onClick={() => handleViewDetail(caseItem.id)}
+                    >
+                      Lihat Detail
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))
+          ) : (
+            <Grid item xs={12}>
+              <Typography variant="body1" align="center" color="text.secondary">
+                Belum ada kasus untuk kategori ini
+              </Typography>
             </Grid>
-          ))}
+          )}
         </Grid>
       </Paper>
 
@@ -210,6 +240,9 @@ function CaseListPage() {
         <DialogTitle>Tambah Kasus Baru</DialogTitle>
         <DialogContent>
           <TextField
+            required
+            error={!newCase.title}
+            helperText={!newCase.title ? "Judul harus diisi" : ""}
             autoFocus
             margin="dense"
             name="title"
@@ -221,6 +254,9 @@ function CaseListPage() {
             onChange={handleInputChange}
           />
           <TextField
+            required
+            error={!newCase.date}
+            helperText={!newCase.date ? "Tanggal harus diisi" : ""}
             margin="dense"
             name="date"
             label="Tanggal"
@@ -255,10 +291,35 @@ function CaseListPage() {
             value={newCase.parties}
             onChange={handleInputChange}
           />
+          <TextField
+            margin="dense"
+            name="witnesses"
+            label="Saksi"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={newCase.witnesses}
+            onChange={handleInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="prosecutor"
+            label="Jaksa"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={newCase.prosecutor}
+            onChange={handleInputChange}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Batal</Button>
-          <Button onClick={handleSaveNewCase}>Simpan</Button>
+          <Button 
+            onClick={handleSaveNewCase}
+            disabled={!newCase.title || !newCase.date}
+          >
+            Simpan
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -268,7 +329,11 @@ function CaseListPage() {
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
