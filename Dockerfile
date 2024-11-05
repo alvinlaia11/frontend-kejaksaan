@@ -21,8 +21,20 @@ ENV CI=false
 # Create production build
 RUN npm run build
 
+# Production stage
+FROM node:18-alpine
+
 # Install serve
 RUN npm install -g serve
+
+# Set working directory
+WORKDIR /app
+
+# Copy build files from build stage
+COPY --from=build /app/build ./build
+
+# Expose port
+EXPOSE 80
 
 # Start serve
 CMD ["serve", "-s", "build", "-l", "80"]
