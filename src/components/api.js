@@ -31,9 +31,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Perbaiki URL handling
-    if (config.url.startsWith('/api/')) {
-      config.url = config.url.substring(5);
+    // Perbaiki URL handling - JANGAN hapus /api
+    if (!config.url.startsWith('/api/')) {
+      config.url = `/api${config.url}`;
     }
 
     // Log request
@@ -125,9 +125,8 @@ const apiHelpers = {
   // Auth endpoints
   auth: {
     login: async (credentials) => {
-      console.log('Calling auth.login()'); // Debug log
-      if (!api) throw new Error('API instance not initialized');
-      return api.post('/auth/login', credentials);
+      console.log('Login request:', credentials);
+      return api.post('/api/auth/login', credentials);
     },
     logout: async () => {
       console.log('Calling auth.logout()'); // Debug log

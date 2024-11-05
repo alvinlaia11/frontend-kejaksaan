@@ -38,58 +38,25 @@ function LoginPage({ setIsLoggedIn }) {
     event.preventDefault();
     setError('');
     
-    if (!email || !password) {
-      setError('Silakan isi email dan password');
-      return;
-    }
-
-    setIsLoading(true);
     try {
-      const loginResponse = await api.post('/api/auth/login', { email, password });
+      console.log('Attempting login with:', { email });
       
-      if (!loginResponse.data || !loginResponse.data.token) {
-        throw new Error('Invalid login response');
-      }
-
-      const { token, user } = loginResponse.data;
-      
-      sessionStorage.setItem('sessionActive', 'true');
-      localStorage.setItem('token', token);
-      localStorage.setItem('userRole', user.role);
-      localStorage.setItem('username', user.username);
-
-      setIsLoggedIn(user.role);
-      
-      setWelcomeDialog({
-        open: true,
-        username: user.username
+      const response = await api.post('/api/auth/login', { 
+        email, 
+        password 
       });
-
-      try {
-        const profileResponse = await api.get('/api/profile', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        if (profileResponse.data?.avatar_url) {
-          updateAvatar(profileResponse.data.avatar_url);
-        }
-      } catch (profileError) {
-        console.error('Error fetching profile:', profileError);
+      
+      console.log('Login response:', response.data);
+      
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('userRole', response.data.user.role);
+        localStorage.setItem('username', response.data.user.username);
+        setIsLoggedIn(response.data.user.role);
       }
-
     } catch (error) {
-      console.error('Login error:', error);
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
-      } else {
-        setError('Email atau password salah');
-      }
-      localStorage.clear();
-      sessionStorage.removeItem('sessionActive');
-    } finally {
-      setIsLoading(false);
+      console.error('Login error details:', error.response?.data);
+      setError(error.response?.data?.error || 'Gagal melakukan login');
     }
   };
 
