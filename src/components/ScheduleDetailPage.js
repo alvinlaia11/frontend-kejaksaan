@@ -62,12 +62,20 @@ function ScheduleDetailPage() {
         }
       });
       
+      console.log('Case data received:', response.data);
+      
       if (!response.data) {
         throw new Error('Data kasus tidak ditemukan');
       }
       
-      setCaseData(response.data);
-      setEditedCase(response.data);
+      const caseData = {
+        ...response.data,
+        witnesses: response.data.witnesses || '',
+        prosecutor: response.data.prosecutor || ''
+      };
+      
+      setCaseData(caseData);
+      setEditedCase(caseData);
     } catch (error) {
       console.error('Error fetching case data:', error);
       setError(error.response?.data?.error || 'Gagal mengambil data kasus');
@@ -97,14 +105,28 @@ function ScheduleDetailPage() {
   const handleSave = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await api.put(`/api/cases/${id}`, editedCase, {
+      
+      const dataToUpdate = {
+        ...editedCase,
+        witnesses: editedCase.witnesses?.trim() || '',
+        prosecutor: editedCase.prosecutor?.trim() || ''
+      };
+
+      console.log('Data yang akan diupdate:', dataToUpdate);
+
+      const response = await api.put(`/api/cases/${id}`, dataToUpdate, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      setCaseData(response.data);
-      setIsEditing(false);
-      showSnackbar('Perubahan berhasil disimpan', 'success');
+
+      console.log('Response update:', response.data);
+
+      if (response.data) {
+        setCaseData(response.data);
+        setIsEditing(false);
+        showSnackbar('Perubahan berhasil disimpan', 'success');
+      }
     } catch (error) {
       console.error('Error updating case:', error);
       showSnackbar('Gagal menyimpan perubahan', 'error');
@@ -207,117 +229,80 @@ function ScheduleDetailPage() {
             <Link component={RouterLink} to={`/cases/${caseData?.type}`} underline="hover" color="inherit">
               {caseData?.type}
             </Link>
-            <Typography color="text.primary">{caseData?.title}</Typography>
+            <Typography color="text.primary">Detail Kasus</Typography>
           </Breadcrumbs>
         </Box>
-        <Card elevation={2}>
-          <CardContent>
-            {isEditing ? (
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    name="title"
-                    label="Judul Kasus"
-                    value={editedCase.title}
-                    onChange={handleInputChange}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    name="date"
-                    label="Tanggal"
-                    type="date"
-                    value={formatDateForInput(editedCase.date)}
-                    onChange={handleInputChange}
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    name="type"
-                    label="Tipe"
-                    value={editedCase.type}
-                    onChange={handleInputChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    name="description"
-                    label="Deskripsi"
-                    multiline
-                    rows={4}
-                    value={editedCase.description}
-                    onChange={handleInputChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    name="parties"
-                    label="Pihak Terkait"
-                    value={editedCase.parties}
-                    onChange={handleInputChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <Box mt={2}>
-                    <Button startIcon={<SaveIcon />} variant="contained" color="primary" onClick={handleSave} sx={{ mr: 1 }}>
-                      Simpan
-                    </Button>
-                    <Button startIcon={<CancelIcon />} variant="outlined" onClick={handleCancel}>
-                      Batal
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-            ) : (
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Typography variant="h5" gutterBottom>{caseData.title}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body1"><strong>Tanggal:</strong> {formatDate(caseData.date)}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body1"><strong>Tipe:</strong> {caseData.type}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body1"><strong>Status:</strong> {caseData.status}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body1"><strong>Prioritas:</strong> {caseData.priority}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body1"><strong>Dibuat oleh:</strong> {caseData.created_by_name}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body1"><strong>Deskripsi:</strong></Typography>
-                  <Typography variant="body2">{caseData.description}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="body1"><strong>Pihak Terkait:</strong></Typography>
-                  <Typography variant="body2">{caseData.parties}</Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Box mt={2}>
-                    <Button startIcon={<EditIcon />} variant="contained" color="primary" onClick={handleEdit} sx={{ mr: 1 }}>
-                      Edit
-                    </Button>
-                    <Button startIcon={<DeleteIcon />} variant="contained" color="error" onClick={handleDelete}>
-                      Hapus
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-            )}
-          </CardContent>
-        </Card>
+
+        {loading ? (
+          <Box display="flex" justifyContent="center" p={3}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="error">{error}</Alert>
+        ) : (
+          <>
+            <Typography variant="h5" gutterBottom>
+              {caseData?.title}
+            </Typography>
+
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="body1" gutterBottom>
+                <strong>Tanggal:</strong> {formatDate(caseData?.date)}
+              </Typography>
+              
+              <Typography variant="body1" gutterBottom>
+                <strong>Deskripsi:</strong> {caseData?.description || '-'}
+              </Typography>
+
+              <Typography variant="body1" gutterBottom>
+                <strong>Pihak Terkait:</strong> {caseData?.parties || '-'}
+              </Typography>
+
+              <Typography variant="body1" gutterBottom>
+                <strong>Saksi:</strong> {caseData?.witnesses || '-'}
+              </Typography>
+
+              <Typography variant="body1" gutterBottom>
+                <strong>Jaksa:</strong> {caseData?.prosecutor || '-'}
+              </Typography>
+
+              <Typography variant="body1" gutterBottom>
+                <strong>Kategori:</strong> {caseData?.type}
+              </Typography>
+            </Box>
+
+            <Grid item xs={12}>
+              <Box 
+                mt={2} 
+                sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-end',
+                  position: 'relative',
+                  bottom: 0,
+                  right: 0
+                }}
+              >
+                <Button 
+                  startIcon={<EditIcon />} 
+                  variant="contained" 
+                  color="primary" 
+                  onClick={handleEdit} 
+                  sx={{ mr: 1 }}
+                >
+                  Edit
+                </Button>
+                <Button 
+                  startIcon={<DeleteIcon />} 
+                  variant="contained" 
+                  color="error" 
+                  onClick={handleDelete}
+                >
+                  Hapus
+                </Button>
+              </Box>
+            </Grid>
+          </>
+        )}
       </Paper>
 
       <Dialog
@@ -352,6 +337,80 @@ function ScheduleDetailPage() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      <Dialog open={isEditing} onClose={handleCancel} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Kasus</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="title"
+            label="Judul Kasus"
+            type="text"
+            fullWidth
+            value={editedCase.title || ''}
+            onChange={handleInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="date"
+            label="Tanggal"
+            type="date"
+            fullWidth
+            InputLabelProps={{
+              shrink: true,
+            }}
+            value={formatDateForInput(editedCase.date) || ''}
+            onChange={handleInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="description"
+            label="Deskripsi"
+            type="text"
+            fullWidth
+            multiline
+            rows={4}
+            value={editedCase.description || ''}
+            onChange={handleInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="parties"
+            label="Pihak Terkait"
+            type="text"
+            fullWidth
+            value={editedCase.parties || ''}
+            onChange={handleInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="witnesses"
+            label="Saksi"
+            type="text"
+            fullWidth
+            value={editedCase.witnesses || ''}
+            onChange={handleInputChange}
+          />
+          <TextField
+            margin="dense"
+            name="prosecutor"
+            label="Jaksa"
+            type="text"
+            fullWidth
+            value={editedCase.prosecutor || ''}
+            onChange={handleInputChange}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancel} startIcon={<CancelIcon />}>
+            Batal
+          </Button>
+          <Button onClick={handleSave} color="primary" startIcon={<SaveIcon />}>
+            Simpan
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
