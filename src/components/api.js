@@ -8,9 +8,9 @@ const getToken = () => localStorage.getItem('token');
 
 // Buat instance axios
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: process.env.REACT_APP_API_URL || 'https://backend-kejaksaan-production.up.railway.app',
   timeout: 5000,
-  withCredentials: true,
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json', 
     'Accept': 'application/json'
@@ -31,8 +31,8 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Tambahkan /api prefix jika belum ada
-    if (!config.url.startsWith('/api')) {
+    // Perbaiki URL handling - JANGAN hapus /api
+    if (!config.url.startsWith('/api/')) {
       config.url = `/api${config.url}`;
     }
 
@@ -125,9 +125,8 @@ const apiHelpers = {
   // Auth endpoints
   auth: {
     login: async (credentials) => {
-      console.log('Calling auth.login()'); // Debug log
-      if (!api) throw new Error('API instance not initialized');
-      return api.post('/auth/login', credentials);
+      console.log('Login request:', credentials);
+      return api.post('/api/auth/login', credentials);
     },
     logout: async () => {
       console.log('Calling auth.logout()'); // Debug log
