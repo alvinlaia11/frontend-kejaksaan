@@ -8,9 +8,9 @@ const getToken = () => localStorage.getItem('token');
 
 // Buat instance axios
 const api = axios.create({
-  baseURL: 'https://backend-kejaksaan-production.up.railway.app',
+  baseURL: process.env.REACT_APP_API_URL || 'https://backend-kejaksaan-production.up.railway.app',
   timeout: 5000,
-  withCredentials: true,
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json', 
     'Accept': 'application/json'
@@ -31,9 +31,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Tambahkan /api prefix jika belum ada
-    if (!config.url.startsWith('/api')) {
-      config.url = `/api${config.url}`;
+    // Hapus penambahan /api karena sudah ada di backend URL
+    if (config.url.startsWith('/api')) {
+      config.url = config.url.substring(4);
     }
 
     // Log request
