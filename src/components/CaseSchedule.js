@@ -234,7 +234,7 @@ function CaseSchedule() {
           right: 0
         }}
       >
-        © 2024 Kejaksaan Negeri - Sistem Informasi Jadwal Sidang
+        © 2024 Kejaksaan Negeri - Tindak Pidana Khusus
       </Typography>
     </InfoBoard>
   );
