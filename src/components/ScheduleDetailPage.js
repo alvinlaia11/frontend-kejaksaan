@@ -107,9 +107,13 @@ function ScheduleDetailPage() {
       const token = localStorage.getItem('token');
       
       const dataToUpdate = {
-        ...editedCase,
-        witnesses: editedCase.witnesses?.trim() || '',
-        prosecutor: editedCase.prosecutor?.trim() || ''
+        title: editedCase.title,
+        date: editedCase.date,
+        description: editedCase.description || '',
+        parties: editedCase.parties || '',
+        type: editedCase.type,
+        witnesses: editedCase.witnesses || '',
+        prosecutor: editedCase.prosecutor || ''
       };
 
       console.log('Data yang akan diupdate:', dataToUpdate);
@@ -124,8 +128,11 @@ function ScheduleDetailPage() {
 
       if (response.data) {
         setCaseData(response.data);
+        setEditedCase(response.data);
         setIsEditing(false);
         showSnackbar('Perubahan berhasil disimpan', 'success');
+        
+        await fetchCaseData();
       }
     } catch (error) {
       console.error('Error updating case:', error);
