@@ -325,7 +325,7 @@ function CaseSchedule() {
           right: 0
         }}
       >
-        © 2024 Kejaksaan Negeri - Tindak Pidana Khusus
+        © 2024 Kejaksaan Negeri Humbang Hasundutan - Tindak Pidana Khusus
       </Typography>
     </InfoBoard>
   );
